@@ -16,7 +16,7 @@ mod models;
 // Handlers
 use crate::handlers::{
     analytics_service, auth_service, billing_service, customer_service, inventory_service,
-    menu_item_service, order_service, recipe_service,
+    menu_item_service, order_service, recipe_service, service_request_service,
 };
 
 fn setup_logging() {
@@ -84,6 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .nest("/api/customers", customer_service(pool.clone()))
         .nest("/api/inventory", inventory_service(pool.clone()))
         .nest("/api/billing", billing_service(pool.clone()))
+        .nest("/api/service-requests", service_request_service(pool.clone()))
         .layer(cors);
 
     // Start server

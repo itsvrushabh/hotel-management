@@ -229,3 +229,30 @@ pub struct PopularItemAnalytics {
     pub total_ordered: i64,
     pub total_revenue: f64,
 }
+
+// --- Service Request Models (Hotel Services) ---
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ServiceRequest {
+    pub id: i64,
+    pub room_number: String,
+    pub service_type: String, // 'laundry', 'housekeeping', 'amenities', 'maintenance'
+    pub status: String, // 'pending', 'in_progress', 'completed'
+    pub description: Option<String>,
+    pub requested_by: Option<String>, // 'guest' or 'frontdesk'
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateServiceRequest {
+    pub room_number: String,
+    pub service_type: String,
+    pub description: Option<String>,
+    pub requested_by: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateServiceRequestStatus {
+    pub status: String,
+}

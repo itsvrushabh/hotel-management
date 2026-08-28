@@ -52,12 +52,12 @@ const HOTEL_ROOMS = [
     { room: 'Room 401', floor: '4th Floor - Presidential Suite', capacity: 4 },
     { room: 'Room 402', floor: '4th Floor - Presidential Suite', capacity: 4 },
 ];
-
 const HotelFrontDesk: React.FC = () => {
     const navigate = useNavigate();
 
     const [allOrders, setAllOrders] = useState<OrderRecord[]>([]);
     const [allBills, setAllBills] = useState<BillRecord[]>([]);
+    const [serviceRequests, setServiceRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [roomFilter, setRoomFilter] = useState<'all' | 'occupied' | 'vacant' | 'service_active'>('all');
 
@@ -69,11 +69,18 @@ const HotelFrontDesk: React.FC = () => {
     const [generatedBill, setGeneratedBill] = useState<{ id: number; total: number } | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+    // Create Service Request Modal State
+    const [showCreateServiceModal, setShowCreateServiceModal] = useState(false);
+    const [createServiceRoom, setCreateServiceRoom] = useState('Room 302');
+    const [createServiceType, setCreateServiceType] = useState('amenities');
+    const [createServiceDesc, setCreateServiceDesc] = useState('');
+
     const loadData = async () => {
         try {
-            const [ordersRes, billsRes] = await Promise.all([
+            const [ordersRes, billsRes, serviceRes] = await Promise.all([
                 fetch(`${API_BASE}/api/orders`),
                 fetch(`${API_BASE}/api/billing`),
+                fetch(`${API_BASE}/api/service-requests`),
             ]);
 
             if (ordersRes.ok) {
@@ -104,6 +111,11 @@ const HotelFrontDesk: React.FC = () => {
             if (billsRes.ok) {
                 const bData = await billsRes.json();
                 if (Array.isArray(bData)) setAllBills(bData);
+            }
+
+            if (serviceRes.ok) {
+                const sData = await serviceRes.json();
+                if (Array.isArray(sData)) setServiceRequests(sData);
             }
         } catch {
             // ignore
@@ -175,6 +187,30 @@ const HotelFrontDesk: React.FC = () => {
             showToast('Folio settlement failed.');
         } finally {
             setSettling(false);
+        }
+    };
+
+    // Create Service Request from Front Desk
+    const handleCreateServiceRequest = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/api/service-requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_number: createServiceRoom,
+                    service_type: createServiceType,
+                    description: createServiceDesc,
+                    requested_by: 'frontdesk',
+                }),
+            });
+            if (res.ok) {
+                showToast(`Service request created for ${createServiceRoom}`);
+                setShowCreateServiceModal(false);
+                setCreateServiceDesc('');
+                loadData();
+            }
+        } catch {
+            showToast('Failed to create service request');
         }
     };
 
@@ -267,22 +303,27 @@ const HotelFrontDesk: React.FC = () => {
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                        onClick={() => navigate('/staff')}
+                        style={{ padding: '8px 16px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        👨‍💼 Staff Dashboard
+                    </button>
                     <a
                         href="http://localhost:3000/frontdesk"
                         style={{ padding: '8px 16px', background: '#0284c7', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center' }}
                     >
-                        🍽️ Switch to Restaurant Front Desk (Port 3000) →
+                        🍽️ Restaurant Front Desk →
                     </a>
                     <button
                         onClick={() => navigate('/')}
                         style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
                     >
-                        🛎️ Open Guest Room Portal
+                        🛎️ Guest Room Portal
                     </button>
                 </div>
             </div>
 
-            {/* In-House Dining Guidance Notice */}
             <div style={{ background: '#132337', border: '1px solid #3b82f6', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '24px' }}>ℹ️</span>
@@ -317,8 +358,7 @@ const HotelFrontDesk: React.FC = () => {
                             borderRadius: '20px',
                             border: roomFilter === tab.id ? '2px solid #60a5fa' : '1px solid #1e3a5f',
                             background: roomFilter === tab.id ? '#1d4ed8' : '#132337',
-                            color: '#f8fafc',
-                            fontWeight: 600,
+                            color: '#fff',
                             fontSize: '13px',
                             cursor: 'pointer',
                         }}
@@ -328,6 +368,50 @@ const HotelFrontDesk: React.FC = () => {
                 ))}
             </div>
 
+            {/* Service Requests Summary */}
+            {serviceRequests.length > 0 && (
+                <div style={{ background: '#132337', border: '1px solid #f59e0b', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '24px' }}>📋</span>
+                            <h3 style={{ margin: 0, fontSize: '16px', color: '#fcd34d' }}>
+                                Pending Service Requests ({serviceRequests.filter(r => r.status === 'pending').length})
+                            </h3>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                                onClick={() => setShowCreateServiceModal(true)}
+                                style={{ padding: '6px 12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                                + Create Request
+                            </button>
+                            <button
+                                onClick={() => navigate('/staff')}
+                                style={{ padding: '6px 12px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                                View Staff Dashboard →
+                            </button>
+                        </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+                        {serviceRequests.slice(0, 4).map(req => (
+                            <div key={req.id} style={{ background: '#0b192c', padding: '10px 14px', borderRadius: '8px', border: '1px solid #334155' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                    <strong style={{ color: '#fcd34d', fontSize: '13px' }}>
+                                        {req.service_type.charAt(0).toUpperCase() + req.service_type.slice(1)}
+                                    </strong>
+                                    <span style={{ background: req.status === 'pending' ? '#f59e0b' : '#3b82f6', color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '10px', fontWeight: 700 }}>
+                                        {req.status}
+                                    </span>
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '2px' }}>
+                                    {req.room_number} • {req.description || 'No description'}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
             {/* Hotel Rooms Grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '18px' }}>
                 {filteredRooms.map(r => {
@@ -572,6 +656,70 @@ const HotelFrontDesk: React.FC = () => {
                                 </div>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Create Service Request Modal */}
+            {showCreateServiceModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+                    <div style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '16px', width: '100%', maxWidth: '480px', padding: '24px', color: '#f8fafc' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+                            <h2 style={{ margin: 0, fontSize: '18px', color: '#fcd34d' }}>Create Service Request</h2>
+                            <button onClick={() => setShowCreateServiceModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+                        </div>
+
+                        <div style={{ marginBottom: '14px' }}>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#93c5fd', marginBottom: '6px' }}>ROOM NUMBER</label>
+                            <select
+                                value={createServiceRoom}
+                                onChange={e => setCreateServiceRoom(e.target.value)}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#f8fafc', fontSize: '13px' }}
+                            >
+                                {HOTEL_ROOMS.map(r => (
+                                    <option key={r.room} value={r.room}>{r.room}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div style={{ marginBottom: '14px' }}>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#93c5fd', marginBottom: '6px' }}>SERVICE TYPE</label>
+                            <select
+                                value={createServiceType}
+                                onChange={e => setCreateServiceType(e.target.value)}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#f8fafc', fontSize: '13px' }}
+                            >
+                                <option value="amenities">🧻 Housekeeping & Amenities</option>
+                                <option value="laundry">🧺 Laundry Service</option>
+                                <option value="maintenance">🔧 Room Maintenance</option>
+                            </select>
+                        </div>
+
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#93c5fd', marginBottom: '6px' }}>DESCRIPTION</label>
+                            <textarea
+                                rows={3}
+                                placeholder="Describe the service request..."
+                                value={createServiceDesc}
+                                onChange={e => setCreateServiceDesc(e.target.value)}
+                                style={{ width: '100%', boxSizing: 'border-box', padding: '10px', borderRadius: '8px', border: '1px solid #334155', background: '#0f172a', color: '#f8fafc', fontSize: '12px', fontFamily: 'inherit' }}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={handleCreateServiceRequest}
+                                style={{ flex: 1, padding: '12px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                Create Request
+                            </button>
+                            <button
+                                onClick={() => setShowCreateServiceModal(false)}
+                                style={{ padding: '12px 20px', background: '#334155', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

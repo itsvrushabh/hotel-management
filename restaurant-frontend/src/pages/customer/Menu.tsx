@@ -371,12 +371,6 @@ const Menu: React.FC = () => {
                             </span>
                         )}
                     </button>
-                    <button
-                        onClick={() => navigate('/frontdesk')}
-                        style={{ padding: '8px 16px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
-                    >
-                        Front Desk
-                    </button>
                 </div>
             </header>
 

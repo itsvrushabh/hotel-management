@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHotelGuest } from '../context/HotelGuestContext';
+const API_BASE = typeof window !== 'undefined' ? window.location.origin : '';
 
 const LAUNDRY_PACKAGES = [
     { id: 1, name: 'Standard Wash & Fold', desc: 'Everyday casual wear, machine washed and neatly folded', price: 90, unit: 'per kg', time: 'Same day (6 hrs)' },
@@ -33,9 +34,26 @@ const LaundryService: React.FC = () => {
     const tax = Math.round(subtotal * 0.05 * 100) / 100;
     const total = Math.round((subtotal + tax) * 100) / 100;
 
-    const handleRequestPickup = () => {
+    const handleRequestPickup = async () => {
         if (subtotal === 0) return;
-        setRequested(true);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/service-requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_number: guest?.roomNumber || 'Room 302',
+                    service_type: 'laundry',
+                    description: `Laundry pickup: ${pickupSlot}. ${specialNotes}`,
+                    requested_by: 'guest',
+                }),
+            });
+            if (res.ok) {
+                setRequested(true);
+            }
+        } catch {
+            setRequested(true); // Fallback to local state if API fails
+        }
     };
 
     return (

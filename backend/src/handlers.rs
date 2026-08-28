@@ -12,9 +12,10 @@ use sqlx::PgPool;
 
 use crate::models::{
     AuthResponse, Bill, Claims, CreateBillRequest, CreateCustomer, CreateInventory, CreateMenuItem,
-    CreateOrderRequest, CreateRecipe, CreateUserRequest, Customer, Inventory, LoginRequest,
-    MenuItem, Order, OrderItem, OrderItemDetail, OrderWithItems, PopularItemAnalytics, Recipe,
-    RevenueAnalytics, UpdateInventoryQuantity, UpdateOrderStatus, User,
+    CreateOrderRequest, CreateRecipe, CreateUserRequest, CreateServiceRequest, Customer, Inventory,
+    LoginRequest, MenuItem, Order, OrderItem, OrderItemDetail, OrderWithItems, PopularItemAnalytics,
+    Recipe, RevenueAnalytics, ServiceRequest, UpdateInventoryQuantity, UpdateOrderStatus,
+    UpdateServiceRequestStatus, User,
 };
 
 const JWT_SECRET: &[u8] = b"hotel_management_secret_key_2026";
@@ -991,4 +992,123 @@ async fn generate_bill_pdf(
     }
 
     Ok((headers, Bytes::from(pdf_bytes)))
+}
+
+// --- Service Request Handlers (Hotel Services) ---
+
+pub fn service_request_service(pool: PgPool) -> Router {
+    Router::new()
+        .route("/", get(list_service_requests).post(create_service_request))
+        .route("/:id", get(get_service_request))
+        .route("/:id/status", patch(update_service_request_status))
+        .with_state(pool)
+}
+
+async fn list_service_requests(
+    State(pool): State<PgPool>,
+    Query(params): Query<std::collections::HashMap<String, String>>,
+) -> Result<Json<Vec<ServiceRequest>>, StatusCode> {
+    let mut query = "SELECT id, room_number, service_type, status, description, requested_by, created_at, updated_at FROM service_requests WHERE 1=1".to_string();
+    let mut count = 0;
+
+    if let Some(room) = params.get("room_number") {
+        count += 1;
+        query.push_str(&format!(" AND room_number = ${}", count));
+    }
+    if let Some(status) = params.get("status") {
+        count += 1;
+        query.push_str(&format!(" AND status = ${}", count));
+    }
+    if let Some(service_type) = params.get("service_type") {
+        count += 1;
+        query.push_str(&format!(" AND service_type = ${}", count));
+    }
+    query.push_str(" ORDER BY created_at DESC");
+
+    let mut q = sqlx::query_as::<_, ServiceRequest>(&query);
+    if let Some(room) = params.get("room_number") {
+        q = q.bind(room);
+    }
+    if let Some(status) = params.get("status") {
+        q = q.bind(status);
+    }
+    if let Some(service_type) = params.get("service_type") {
+        q = q.bind(service_type);
+    }
+
+    q.fetch_all(&pool).await.map(Json).map_err(|e| {
+        tracing::error!("Failed to list service requests: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+ })
+}
+
+async fn get_service_request(
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+) -> Result<Json<ServiceRequest>, StatusCode> {
+    let result = sqlx::query_as::<_, ServiceRequest>(
+        "SELECT id, room_number, service_type, status, description, requested_by, created_at, updated_at FROM service_requests WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to get service request {}: {:?}", id, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+ })?
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    Ok(Json(result))
+}
+
+async fn create_service_request(
+    State(pool): State<PgPool>,
+    Json(payload): Json<CreateServiceRequest>,
+) -> Result<(StatusCode, Json<ServiceRequest>), StatusCode> {
+    let valid_types = ["laundry", "housekeeping", "amenities", "maintenance"];
+    if !valid_types.contains(&payload.service_type.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let created = sqlx::query_as::<_, ServiceRequest>(
+        "INSERT INTO service_requests (room_number, service_type, description, requested_by) VALUES ($1, $2, $3, $4) RETURNING id, room_number, service_type, status, description, requested_by, created_at, updated_at",
+    )
+    .bind(&payload.room_number)
+    .bind(&payload.service_type)
+    .bind(&payload.description)
+    .bind(&payload.requested_by.unwrap_or_else(|| "guest".to_string()))
+    .fetch_one(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to create service request: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+ })?;
+
+    Ok((StatusCode::CREATED, Json(created)))
+}
+
+async fn update_service_request_status(
+    State(pool): State<PgPool>,
+    Path(id): Path<i64>,
+    Json(payload): Json<UpdateServiceRequestStatus>,
+) -> Result<Json<ServiceRequest>, StatusCode> {
+    let valid_statuses = ["pending", "in_progress", "completed", "cancelled"];
+    if !valid_statuses.contains(&payload.status.as_str()) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let updated = sqlx::query_as::<_, ServiceRequest>(
+        "UPDATE service_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, room_number, service_type, status, description, requested_by, created_at, updated_at",
+    )
+    .bind(&payload.status)
+    .bind(id)
+    .fetch_optional(&pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to update service request {}: {:?}", id, e);
+        StatusCode::INTERNAL_SERVER_ERROR
+ })?
+    .ok_or(StatusCode::NOT_FOUND)?;
+
+    Ok(Json(updated))
 }

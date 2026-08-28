@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { HotelGuestProvider } from './context/HotelGuestContext';
 import { RoomCartProvider } from './context/RoomCartContext';
-import { GuestRoomPortal, LaundryService, AmenitiesConcierge, HotelFrontDesk } from './pages';
+import { GuestRoomPortal, LaundryService, AmenitiesConcierge, HotelFrontDesk, HotelStaffDashboard } from './pages';
 
 export const App: React.FC = () => {
     return (
@@ -22,6 +22,8 @@ export const App: React.FC = () => {
                         <Route path="/concierge" element={<AmenitiesConcierge />} />
                         <Route path="/frontdesk" element={<HotelFrontDesk />} />
                         <Route path="/hotel-frontdesk" element={<HotelFrontDesk />} />
+                        <Route path="/staff" element={<HotelStaffDashboard />} />
+                        <Route path="/hotel-staff" element={<HotelStaffDashboard />} />
                         <Route
                             path="*"
                             element={

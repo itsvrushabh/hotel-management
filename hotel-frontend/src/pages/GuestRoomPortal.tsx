@@ -255,12 +255,6 @@ const GuestRoomPortal: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                        onClick={() => navigate('/frontdesk')}
-                        style={{ padding: '8px 16px', background: '#1e293b', border: '1px solid #3b82f6', color: '#93c5fd', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                        🏨 Hotel Front Desk
-                    </button>
                     <a
                         href="http://localhost:3000"
                         style={{ padding: '8px 16px', background: '#0284c7', color: '#fff', borderRadius: '8px', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center' }}

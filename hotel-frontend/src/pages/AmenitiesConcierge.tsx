@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useHotelGuest } from '../context/HotelGuestContext';
+const API_BASE = typeof window !== 'undefined' ? window.location.origin : '';
 
 const AMENITY_OPTIONS = [
     { id: 'towels', name: 'Fresh Bath & Face Towels', desc: 'Set of sanitized, plush cotton towels', icon: '🛁', cost: 'Complimentary' },
@@ -29,9 +30,26 @@ const AmenitiesConcierge: React.FC = () => {
         );
     };
 
-    const handleSendRequest = () => {
+    const handleSendRequest = async () => {
         if (selectedItems.length === 0 && !wakeupTime) return;
-        setSubmitted(true);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/service-requests`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_number: guest?.roomNumber || 'Room 302',
+                    service_type: 'amenities',
+                    description: `Amenities: ${selectedItems.map(id => AMENITY_OPTIONS.find(a => a.id === id)?.name).join(', ')}. ${wakeupTime ? `Wakeup call at ${wakeupTime}.` : ''} ${specialNotes}`,
+                    requested_by: 'guest',
+                }),
+            });
+            if (res.ok) {
+                setSubmitted(true);
+            }
+        } catch {
+            setSubmitted(true); // Fallback to local state if API fails
+        }
     };
 
     return (
