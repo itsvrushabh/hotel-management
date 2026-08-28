@@ -1,5 +1,5 @@
 // hotel-management/frontend/src/pages/staff/FrontDeskView.tsx
-// Front Desk Floor & Table Management with Consolidated Billing & Settlement
+// Front Desk Floor Management & Service Velocity / Order History Log
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -53,6 +53,7 @@ const ALL_TABLE_IDS = [
 const FrontDeskView: React.FC = () => {
     const navigate = useNavigate();
 
+    const [viewMode, setViewMode] = useState<'floor' | 'history'>('floor');
     const [allOrders, setAllOrders] = useState<OrderRecord[]>([]);
     const [allBills, setAllBills] = useState<BillRecord[]>([]);
     const [loading, setLoading] = useState(true);
@@ -78,7 +79,7 @@ const FrontDeskView: React.FC = () => {
                 if (Array.isArray(ordData)) {
                     // Enrich recent orders with full items
                     const enriched = await Promise.all(
-                        ordData.slice(0, 40).map(async (ord: OrderRecord) => {
+                        ordData.slice(0, 50).map(async (ord: OrderRecord) => {
                             try {
                                 const dRes = await fetch(`${API_BASE}/api/orders/${ord.id}`);
                                 if (dRes.ok) {
@@ -123,7 +124,7 @@ const FrontDeskView: React.FC = () => {
         setTimeout(() => setToastMessage(null), 3500);
     };
 
-    // Open Billing Modal for Table (with unified Room & Restaurant Guest Folio)
+    // Open Billing Modal for Table
     const handleOpenTableBilling = (tableName: string) => {
         setSelectedTable(tableName);
         setGeneratedBill(null);
@@ -156,7 +157,6 @@ const FrontDeskView: React.FC = () => {
         setSettling(true);
 
         try {
-            // Find primary order or most recent order to bill
             const targetOrder = tableOrders[0];
             if (!targetOrder) return;
 
@@ -173,7 +173,7 @@ const FrontDeskView: React.FC = () => {
                 const billData = await res.json();
                 setGeneratedBill(billData);
 
-                // Mark all table orders as served/completed
+                // Mark all table orders as served
                 await Promise.all(
                     tableOrders.map(o =>
                         fetch(`${API_BASE}/api/orders/${o.id}/status`, {
@@ -194,6 +194,25 @@ const FrontDeskView: React.FC = () => {
         }
     };
 
+    // Helper: Compute Service Duration from creation to serve/current
+    const computeServiceDuration = (createdAt?: string, status?: string) => {
+        if (!createdAt) return { text: 'N/A', minutes: 0, badge: '#64748b' };
+        const createdDate = new Date(createdAt);
+        const now = new Date();
+        const diffMs = now.getTime() - createdDate.getTime();
+        const minutes = Math.max(1, Math.round(diffMs / 60000));
+
+        if (status === 'served') {
+            if (minutes <= 15) return { text: `${minutes} mins (⚡ Fast Service)`, minutes, badge: '#10b981' };
+            if (minutes <= 25) return { text: `${minutes} mins (Standard)`, minutes, badge: '#38bdf8' };
+            return { text: `${minutes} mins (Served)`, minutes, badge: '#a855f7' };
+        }
+
+        if (minutes > 25) return { text: `${minutes} mins in prep (⚠️ Delayed)`, minutes, badge: '#ef4444' };
+        if (minutes > 15) return { text: `${minutes} mins in prep (Cooking)`, minutes, badge: '#eab308' };
+        return { text: `${minutes} mins in prep (Just Placed)`, minutes, badge: '#3b82f6' };
+    };
+
     // Table status resolver
     const getTableSummary = (tableName: string) => {
         const matchingOrders = allOrders.filter(
@@ -209,18 +228,13 @@ const FrontDeskView: React.FC = () => {
                 totalBalance: 0,
                 customerName: null,
                 phone: null,
-                isServing: false,
-                isPreparing: false,
-                isFinished: false,
             };
         }
 
-        // Check if any order is active vs served
         const hasPreparing = matchingOrders.some(o => o.status === 'pending' || o.status === 'confirmed' || o.status === 'preparing');
         const hasReady = matchingOrders.some(o => o.status === 'ready');
         const allServed = matchingOrders.every(o => o.status === 'served');
 
-        // Check if billed
         const billedOrderIds = new Set(allBills.map(b => b.order_id));
         const allBilled = matchingOrders.every(o => billedOrderIds.has(o.id));
 
@@ -236,9 +250,6 @@ const FrontDeskView: React.FC = () => {
                 totalBalance,
                 customerName: customer?.name || null,
                 phone: customer?.phone || null,
-                isServing: false,
-                isPreparing: false,
-                isFinished: true,
             };
         }
 
@@ -251,9 +262,6 @@ const FrontDeskView: React.FC = () => {
                 totalBalance,
                 customerName: customer?.name || null,
                 phone: customer?.phone || null,
-                isServing: false,
-                isPreparing: true,
-                isFinished: false,
             };
         }
 
@@ -266,9 +274,6 @@ const FrontDeskView: React.FC = () => {
                 totalBalance,
                 customerName: customer?.name || null,
                 phone: customer?.phone || null,
-                isServing: true,
-                isPreparing: false,
-                isFinished: false,
             };
         }
 
@@ -281,9 +286,6 @@ const FrontDeskView: React.FC = () => {
                 totalBalance,
                 customerName: customer?.name || null,
                 phone: customer?.phone || null,
-                isServing: true,
-                isPreparing: false,
-                isFinished: true,
             };
         }
 
@@ -295,9 +297,6 @@ const FrontDeskView: React.FC = () => {
             totalBalance,
             customerName: customer?.name || null,
             phone: customer?.phone || null,
-            isServing: true,
-            isPreparing: false,
-            isFinished: false,
         };
     };
 
@@ -310,7 +309,6 @@ const FrontDeskView: React.FC = () => {
         return true;
     });
 
-    // Compute consolidated line items for modal
     const consolidatedItems = tableOrders.flatMap(o => o.items || []);
     const consolidatedSubtotal = consolidatedItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
     const consolidatedTax = Math.round(consolidatedSubtotal * 0.05 * 100) / 100;
@@ -319,25 +317,19 @@ const FrontDeskView: React.FC = () => {
     return (
         <div style={{ padding: '24px', fontFamily: 'system-ui, sans-serif', background: '#0f172a', minHeight: '100vh', color: '#f8fafc' }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                    <h1 style={{ margin: 0, fontSize: '24px', color: '#f8fafc' }}>🏢 Front Desk & Floor Management</h1>
+                    <h1 style={{ margin: 0, fontSize: '24px', color: '#f8fafc' }}>🏢 Front Desk Operations & Floor Matrix</h1>
                     <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '14px' }}>
-                        Real-time table occupancy, dining status matrix, and consolidated billing
+                        Live table occupancy, service velocity duration log, and consolidated master billing
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                        onClick={loadData}
-                        style={{ padding: '8px 16px', background: '#334155', color: '#fff', border: '1px solid #475569', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
-                    >
-                        🔄 Refresh Floor
-                    </button>
-                    <button
                         onClick={() => navigate('/waiter')}
                         style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
                     >
-                        🤵 Waiter POS
+                        🤵 Waiter View
                     </button>
                     <button
                         onClick={() => navigate('/staff')}
@@ -345,7 +337,54 @@ const FrontDeskView: React.FC = () => {
                     >
                         👨‍🍳 Kitchen KDS
                     </button>
+                    <button
+                        onClick={() => navigate('/')}
+                        style={{ padding: '8px 16px', background: '#334155', color: '#fff', border: '1px solid #475569', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        🍽️ Customer Menu
+                    </button>
                 </div>
+            </div>
+
+            {/* View Mode Switcher */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <button
+                    onClick={() => setViewMode('floor')}
+                    style={{
+                        padding: '10px 22px',
+                        borderRadius: '10px',
+                        border: viewMode === 'floor' ? '2px solid #38bdf8' : '1px solid #334155',
+                        background: viewMode === 'floor' ? '#0369a1' : '#1e293b',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                    }}
+                >
+                    🏢 Real-Time Table Floor Map
+                </button>
+
+                <button
+                    onClick={() => setViewMode('history')}
+                    style={{
+                        padding: '10px 22px',
+                        borderRadius: '10px',
+                        border: viewMode === 'history' ? '2px solid #38bdf8' : '1px solid #334155',
+                        background: viewMode === 'history' ? '#0369a1' : '#1e293b',
+                        color: '#fff',
+                        fontWeight: 700,
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                    }}
+                >
+                    <span>⏱️ Order History & Service Duration Log</span>
+                    <span style={{ background: '#0284c7', color: '#fff', padding: '1px 8px', borderRadius: '12px', fontSize: '11px' }}>
+                        {allOrders.length}
+                    </span>
+                </button>
             </div>
 
             {/* Toast Message */}
@@ -355,159 +394,233 @@ const FrontDeskView: React.FC = () => {
                 </div>
             )}
 
-            {/* Filter Tabs */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                {[
-                    { id: 'all', label: `All Locations (${ALL_TABLE_IDS.length})` },
-                    { id: 'occupied', label: `Occupied / Dining` },
-                    { id: 'vacant', label: `Vacant & Available` },
-                    { id: 'settled', label: `Settled / Needs Reset` },
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setFilterTab(tab.id as any)}
-                        style={{
-                            padding: '8px 18px',
-                            borderRadius: '20px',
-                            border: filterTab === tab.id ? '2px solid #38bdf8' : '1px solid #334155',
-                            background: filterTab === tab.id ? '#0369a1' : '#1e293b',
-                            color: '#f8fafc',
-                            fontWeight: 600,
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
+            {/* TAB MODE 1: FLOOR MAP MATRIX */}
+            {viewMode === 'floor' && (
+                <div>
+                    {/* Filter Tabs */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                        {[
+                            { id: 'all', label: `All Locations (${ALL_TABLE_IDS.length})` },
+                            { id: 'occupied', label: `Occupied / Dining` },
+                            { id: 'vacant', label: `Vacant & Available` },
+                            { id: 'settled', label: `Settled / Needs Reset` },
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setFilterTab(tab.id as any)}
+                                style={{
+                                    padding: '8px 18px',
+                                    borderRadius: '20px',
+                                    border: filterTab === tab.id ? '2px solid #38bdf8' : '1px solid #334155',
+                                    background: filterTab === tab.id ? '#0369a1' : '#1e293b',
+                                    color: '#f8fafc',
+                                    fontWeight: 600,
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
 
-            {loading && allOrders.length === 0 && <p style={{ color: '#94a3b8' }}>Loading floor status...</p>}
+                    {loading && allOrders.length === 0 && <p style={{ color: '#94a3b8' }}>Loading floor status...</p>}
 
-            {/* Visual Floor Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                {filteredTables.map(tableName => {
-                    const info = getTableSummary(tableName);
+                    {/* Visual Floor Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                        {filteredTables.map(tableName => {
+                            const info = getTableSummary(tableName);
 
-                    let cardBorder = '#334155';
-                    let badgeBg = '#334155';
-                    let badgeColor = '#94a3b8';
+                            let cardBorder = '#334155';
+                            let badgeBg = '#334155';
+                            let badgeColor = '#94a3b8';
 
-                    if (info.status === 'vacant') {
-                        cardBorder = '#1e3a5f';
-                        badgeBg = '#064e3b';
-                        badgeColor = '#6ee7b7';
-                    } else if (info.status === 'preparing') {
-                        cardBorder = '#854d0e';
-                        badgeBg = '#713f12';
-                        badgeColor = '#fde047';
-                    } else if (info.status === 'ready') {
-                        cardBorder = '#1d4ed8';
-                        badgeBg = '#1e40af';
-                        badgeColor = '#93c5fd';
-                    } else if (info.status === 'serving') {
-                        cardBorder = '#6b21a8';
-                        badgeBg = '#581c87';
-                        badgeColor = '#d8b4fe';
-                    } else if (info.status === 'settled') {
-                        cardBorder = '#475569';
-                        badgeBg = '#334155';
-                        badgeColor = '#cbd5e1';
-                    }
+                            if (info.status === 'vacant') {
+                                cardBorder = '#1e3a5f';
+                                badgeBg = '#064e3b';
+                                badgeColor = '#6ee7b7';
+                            } else if (info.status === 'preparing') {
+                                cardBorder = '#854d0e';
+                                badgeBg = '#713f12';
+                                badgeColor = '#fde047';
+                            } else if (info.status === 'ready') {
+                                cardBorder = '#1d4ed8';
+                                badgeBg = '#1e40af';
+                                badgeColor = '#93c5fd';
+                            } else if (info.status === 'serving') {
+                                cardBorder = '#6b21a8';
+                                badgeBg = '#581c87';
+                                badgeColor = '#d8b4fe';
+                            } else if (info.status === 'settled') {
+                                cardBorder = '#475569';
+                                badgeBg = '#334155';
+                                badgeColor = '#cbd5e1';
+                            }
 
-                    return (
-                        <div
-                            key={tableName}
-                            style={{
-                                background: '#1e293b',
-                                border: `2px solid ${cardBorder}`,
-                                borderRadius: '12px',
-                                padding: '16px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: 'space-between',
-                                boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
-                            }}
-                        >
-                            <div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                    <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>{tableName}</h3>
-                                    <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', background: badgeBg, color: badgeColor }}>
-                                        {info.statusLabel}
-                                    </span>
-                                </div>
-
-                                <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#94a3b8' }}>
-                                    {info.subLabel}
-                                </p>
-
-                                {info.status !== 'vacant' && (
-                                    <div style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', marginBottom: '12px', fontSize: '12px' }}>
-                                        {info.customerName && (
-                                            <div style={{ color: '#e2e8f0', marginBottom: '2px' }}>
-                                                👤 Guest: <strong>{info.customerName}</strong>
-                                            </div>
-                                        )}
-                                        {info.phone && (
-                                            <div style={{ color: '#94a3b8', marginBottom: '4px' }}>
-                                                📞 Phone: {info.phone}
-                                            </div>
-                                        )}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', borderTop: '1px solid #334155', paddingTop: '4px' }}>
-                                            <span style={{ color: '#94a3b8' }}>Total Rounds: {info.activeOrders.length}</span>
-                                            <strong style={{ color: '#34d399', fontSize: '14px' }}>₹{info.totalBalance.toFixed(2)}</strong>
+                            return (
+                                <div
+                                    key={tableName}
+                                    style={{
+                                        background: '#1e293b',
+                                        border: `2px solid ${cardBorder}`,
+                                        borderRadius: '12px',
+                                        padding: '16px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
+                                        boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                                    }}
+                                >
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                            <h3 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>{tableName}</h3>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', background: badgeBg, color: badgeColor }}>
+                                                {info.statusLabel}
+                                            </span>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
 
-                            <div>
-                                {info.status !== 'vacant' ? (
-                                    <button
-                                        onClick={() => handleOpenTableBilling(tableName)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '10px',
-                                            background: '#0284c7',
-                                            color: '#fff',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            fontWeight: 700,
-                                            fontSize: '13px',
-                                            cursor: 'pointer',
-                                        }}
-                                    >
-                                        🧾 View Orders & Generate Bill →
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => navigate('/waiter')}
-                                        style={{
-                                            width: '100%',
-                                            padding: '8px',
-                                            background: '#334155',
-                                            color: '#cbd5e1',
-                                            border: '1px solid #475569',
-                                            borderRadius: '6px',
-                                            fontWeight: 600,
-                                            fontSize: '12px',
-                                            cursor: 'pointer',
-                                        }}
-                                    >
-                                        ➕ Take Table Order (Waiter)
-                                    </button>
-                                )}
-                            </div>
+                                        <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#94a3b8' }}>
+                                            {info.subLabel}
+                                        </p>
+
+                                        {info.status !== 'vacant' && (
+                                            <div style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', marginBottom: '12px', fontSize: '12px' }}>
+                                                {info.customerName && (
+                                                    <div style={{ color: '#e2e8f0', marginBottom: '2px' }}>
+                                                        👤 Guest: <strong>{info.customerName}</strong>
+                                                    </div>
+                                                )}
+                                                {info.phone && (
+                                                    <div style={{ color: '#94a3b8', marginBottom: '4px' }}>
+                                                        📞 Phone: {info.phone}
+                                                    </div>
+                                                )}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', borderTop: '1px solid #334155', paddingTop: '4px' }}>
+                                                    <span style={{ color: '#94a3b8' }}>Total Rounds: {info.activeOrders.length}</span>
+                                                    <strong style={{ color: '#34d399', fontSize: '14px' }}>₹{info.totalBalance.toFixed(2)}</strong>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        {info.status !== 'vacant' ? (
+                                            <button
+                                                onClick={() => handleOpenTableBilling(tableName)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '10px',
+                                                    background: '#0284c7',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '6px',
+                                                    fontWeight: 700,
+                                                    fontSize: '13px',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                🧾 View Orders & Generate Bill →
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => navigate('/waiter')}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '8px',
+                                                    background: '#334155',
+                                                    color: '#cbd5e1',
+                                                    border: '1px solid #475569',
+                                                    borderRadius: '6px',
+                                                    fontWeight: 600,
+                                                    fontSize: '12px',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                ➕ Take Table Order (Waiter)
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* TAB MODE 2: SERVICE VELOCITY & ORDER TIMELINE LOG */}
+            {viewMode === 'history' && (
+                <div style={{ background: '#1e293b', borderRadius: '14px', padding: '20px', border: '1px solid #334155' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+                        <div>
+                            <h2 style={{ margin: 0, fontSize: '18px', color: '#f8fafc' }}>⏱️ Order Service Velocity & Duration Log</h2>
+                            <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: '13px' }}>
+                                Tracks Order ID, location, live status, and time taken from order creation to table delivery
+                            </p>
                         </div>
-                    );
-                })}
-            </div>
+                    </div>
+
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                            <thead>
+                                <tr style={{ background: '#0f172a', borderBottom: '1px solid #475569', color: '#94a3b8' }}>
+                                    <th style={{ padding: '12px 14px' }}>Order ID</th>
+                                    <th style={{ padding: '12px 14px' }}>Table / Location</th>
+                                    <th style={{ padding: '12px 14px' }}>Current Status</th>
+                                    <th style={{ padding: '12px 14px' }}>Time to Table Service</th>
+                                    <th style={{ padding: '12px 14px' }}>Dishes in Ticket</th>
+                                    <th style={{ padding: '12px 14px', textAlign: 'right' }}>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {allOrders.map(ord => {
+                                    const velocity = computeServiceDuration(ord.created_at, ord.status);
+                                    let statusColor = '#eab308';
+                                    if (ord.status === 'preparing') statusColor = '#3b82f6';
+                                    if (ord.status === 'ready') statusColor = '#10b981';
+                                    if (ord.status === 'served') statusColor = '#8b5cf6';
+
+                                    return (
+                                        <tr key={ord.id} style={{ borderBottom: '1px solid #334155' }}>
+                                            <td style={{ padding: '12px 14px', fontWeight: 700, color: '#38bdf8' }}>
+                                                {ord.order_code}
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                <strong style={{ color: '#f8fafc' }}>{ord.table_number || ord.room_number || 'Takeaway'}</strong>
+                                                {ord.customer?.name && (
+                                                    <span style={{ display: 'block', fontSize: '11px', color: '#94a3b8' }}>
+                                                        {ord.customer.name}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                <span style={{ background: statusColor, color: '#fff', padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, textTransform: 'capitalize' }}>
+                                                    {ord.status}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '12px 14px' }}>
+                                                <span style={{ color: velocity.badge, fontWeight: 700, fontSize: '13px' }}>
+                                                    ⏱️ {velocity.text}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '12px 14px', color: '#cbd5e1' }}>
+                                                {ord.items?.map(it => `${it.quantity}x ${it.item_name}`).join(', ') || 'Dishes'}
+                                            </td>
+                                            <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#34d399' }}>
+                                                ₹{ord.total.toFixed(2)}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* CONSOLIDATED BILLING MODAL */}
             {selectedTable && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
                     <div style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '16px', width: '100%', maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', color: '#f8fafc', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
-                        {/* Modal Header */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px', marginBottom: '16px' }}>
                             <div>
                                 <h2 style={{ margin: 0, fontSize: '20px', color: '#f8fafc' }}>
@@ -531,7 +644,9 @@ const FrontDeskView: React.FC = () => {
                             {tableOrders.map((ord, idx) => (
                                 <div key={ord.id} style={{ background: '#0f172a', padding: '10px 14px', borderRadius: '8px', marginBottom: '8px', border: '1px solid #334155' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                        <strong style={{ color: '#fde047', fontSize: '13px' }}>Round #{idx + 1} — {ord.order_code}</strong>
+                                        <strong style={{ color: '#fde047', fontSize: '13px' }}>
+                                            Round #{idx + 1} — {ord.order_code} {ord.room_number ? `(🛎️ ${ord.room_number})` : `(🍽️ ${ord.table_number})`}
+                                        </strong>
                                         <span style={{ fontSize: '12px', color: '#94a3b8' }}>{ord.status.toUpperCase()}</span>
                                     </div>
                                     {ord.items?.map(it => (
@@ -563,7 +678,7 @@ const FrontDeskView: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Payment Selection or Completed Bill Actions */}
+                        {/* Payment Selection */}
                         {!generatedBill ? (
                             <div>
                                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>

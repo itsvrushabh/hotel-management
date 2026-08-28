@@ -1,6 +1,9 @@
 // hotel-management/frontend/src/pages/customer/OrderHistory.tsx
-import React, { useState } from 'react';
+// Front Desk & Order Service Velocity History View
+
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 const API_BASE = typeof window !== 'undefined' ? window.location.origin : '';
 
 interface OrderItemDetail {
@@ -23,191 +26,156 @@ interface OrderRecord {
     items?: OrderItemDetail[];
 }
 
-const STATUS_STEPS = ['pending', 'confirmed', 'preparing', 'ready', 'served'];
-
 const OrderHistory: React.FC = () => {
     const navigate = useNavigate();
-    const [searchCode, setSearchCode] = useState('');
     const [orders, setOrders] = useState<OrderRecord[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [searchCode, setSearchCode] = useState('');
 
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const code = searchCode.trim();
-        if (!code) return;
-
-        setLoading(true);
-        setError(null);
-        setOrders([]);
-
+    const loadOrders = async () => {
         try {
-            // First try looking up by order code
-            const res = await fetch(`${API_BASE}/api/orders/code/${encodeURIComponent(code)}`);
+            const res = await fetch(`${API_BASE}/api/orders`);
             if (res.ok) {
                 const data = await res.json();
-                const record: OrderRecord = {
-                    ...(data.order || data),
-                    items: data.items || [],
-                };
-                setOrders([record]);
-            } else {
-                // If not found by code, try listing recent orders
-                const listRes = await fetch(`${API_BASE}/api/orders`);
-                if (listRes.ok) {
-                    const allData = await listRes.json();
-                    if (Array.isArray(allData)) {
-                        const matched = allData.filter((o: OrderRecord) =>
-                            o.order_code.toLowerCase().includes(code.toLowerCase()) ||
-                            (o.table_number && o.table_number.toLowerCase().includes(code.toLowerCase()))
-                        );
-                        if (matched.length > 0) {
-                            setOrders(matched);
-                        } else {
-                            setError(`No order found matching "${code}".`);
-                        }
-                    }
-                } else {
-                    setError('Order not found.');
+                if (Array.isArray(data)) {
+                    const detailed = await Promise.all(
+                        data.slice(0, 30).map(async (ord: OrderRecord) => {
+                            try {
+                                const dRes = await fetch(`${API_BASE}/api/orders/${ord.id}`);
+                                if (dRes.ok) {
+                                    const full = await dRes.json();
+                                    return {
+                                        ...(full.order || ord),
+                                        items: full.items || [],
+                                    };
+                                }
+                            } catch {
+                                // ignore
+                            }
+                            return ord;
+                        })
+                    );
+                    setOrders(detailed);
                 }
             }
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Error fetching order details.';
-            setError(msg);
+        } catch {
+            // ignore
         } finally {
             setLoading(false);
         }
     };
 
-    const getStatusIndex = (status: string) => {
-        const idx = STATUS_STEPS.indexOf(status.toLowerCase());
-        return idx >= 0 ? idx : 0;
+    useEffect(() => {
+        loadOrders();
+    }, []);
+
+    const computeServiceDuration = (createdAt?: string, status?: string) => {
+        if (!createdAt) return { text: 'N/A', badge: '#64748b' };
+        const createdDate = new Date(createdAt);
+        const now = new Date();
+        const diffMs = now.getTime() - createdDate.getTime();
+        const minutes = Math.max(1, Math.round(diffMs / 60000));
+
+        if (status === 'served') {
+            if (minutes <= 15) return { text: `${minutes} mins (⚡ Fast Service)`, badge: '#10b981' };
+            if (minutes <= 25) return { text: `${minutes} mins (Standard)`, badge: '#38bdf8' };
+            return { text: `${minutes} mins (Served)`, badge: '#a855f7' };
+        }
+
+        if (minutes > 25) return { text: `${minutes} mins in prep (⚠️ Delayed)`, badge: '#ef4444' };
+        if (minutes > 15) return { text: `${minutes} mins in prep (Cooking)`, badge: '#eab308' };
+        return { text: `${minutes} mins in prep (Just Placed)`, badge: '#3b82f6' };
     };
 
+    const filtered = orders.filter(
+        o =>
+            !searchCode.trim() ||
+            o.order_code.toLowerCase().includes(searchCode.toLowerCase()) ||
+            (o.table_number && o.table_number.toLowerCase().includes(searchCode.toLowerCase())) ||
+            (o.room_number && o.room_number.toLowerCase().includes(searchCode.toLowerCase()))
+    );
+
     return (
-        <div style={{ maxWidth: '800px', margin: '20px auto', padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '2px solid #eee', paddingBottom: '12px' }}>
+        <div style={{ maxWidth: '1000px', margin: '20px auto', padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '2px solid #eee', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
                 <div>
-                    <h1 style={{ margin: 0, color: '#1e293b' }}>Track Your Order</h1>
-                    <p style={{ margin: '4px 0 0', color: '#64748b' }}>Enter your order number or table number to check status</p>
+                    <h1 style={{ margin: 0, fontSize: '22px', color: '#1e293b' }}>⏱️ Order Timeline & Service Duration Log</h1>
+                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '13px' }}>
+                        Shows Order ID, status, and duration from order creation to table delivery
+                    </p>
                 </div>
-                <button
-                    onClick={() => navigate('/')}
-                    style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
-                >
-                    Menu
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                        onClick={() => navigate('/')}
+                        style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                        ← Customer Menu
+                    </button>
+                    <button
+                        onClick={() => navigate('/frontdesk')}
+                        style={{ padding: '8px 16px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                        🏢 Front Desk Floor Map
+                    </button>
+                </div>
             </div>
 
-            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
+            <div style={{ marginBottom: '16px' }}>
                 <input
                     type="text"
-                    placeholder="Enter order code (e.g. ORD-2026...) or table number..."
+                    placeholder="Search by Order ID (e.g. ORD-2026...), Table, or Room..."
                     value={searchCode}
                     onChange={e => setSearchCode(e.target.value)}
-                    style={{ flex: 1, padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '15px' }}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '14px' }}
                 />
-                <button
-                    type="submit"
-                    disabled={loading}
-                    style={{ padding: '10px 20px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
-                >
-                    {loading ? 'Searching...' : 'Search'}
-                </button>
-            </form>
+            </div>
 
-            {error && (
-                <div style={{ padding: '12px 16px', background: '#fee2e2', color: '#dc2626', borderRadius: '8px', marginBottom: '20px' }}>
-                    {error}
-                </div>
-            )}
+            {loading && <p style={{ color: '#64748b' }}>Loading order log...</p>}
 
-            {orders.map(order => {
-                const currentStepIdx = getStatusIndex(order.status);
-                return (
-                    <div
-                        key={order.id}
-                        style={{
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '12px',
-                            padding: '20px',
-                            marginBottom: '20px',
-                            background: '#fff',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                        }}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                            <div>
-                                <h2 style={{ margin: '0 0 4px', fontSize: '20px', color: '#1e293b' }}>{order.order_code}</h2>
-                                <span style={{ color: '#64748b', fontSize: '14px' }}>
-                                    {order.order_type.replace('_', ' ').toUpperCase()} • {order.table_number || order.room_number || 'Takeaway'}
-                                </span>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <span style={{ fontSize: '18px', fontWeight: 700, color: '#059669', display: 'block' }}>
-                                    ₹{order.total.toFixed(2)}
-                                </span>
-                                {order.created_at && (
-                                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                                        {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
+            <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                    <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', color: '#475569' }}>
+                            <th style={{ padding: '12px 16px' }}>Order ID</th>
+                            <th style={{ padding: '12px 16px' }}>Table / Location</th>
+                            <th style={{ padding: '12px 16px' }}>Status</th>
+                            <th style={{ padding: '12px 16px' }}>Service Velocity</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right' }}>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filtered.map(ord => {
+                            const velocity = computeServiceDuration(ord.created_at, ord.status);
+                            let statusColor = '#eab308';
+                            if (ord.status === 'preparing') statusColor = '#3b82f6';
+                            if (ord.status === 'ready') statusColor = '#10b981';
+                            if (ord.status === 'served') statusColor = '#8b5cf6';
 
-                        {/* Progress Stepper */}
-                        <div style={{ margin: '24px 0', padding: '12px 0' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative' }}>
-                                {STATUS_STEPS.map((step, idx) => {
-                                    const isPassed = idx <= currentStepIdx;
-                                    const isCurrent = idx === currentStepIdx;
-                                    return (
-                                        <div key={step} style={{ flex: 1, textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                                            <div
-                                                style={{
-                                                    width: '28px',
-                                                    height: '28px',
-                                                    borderRadius: '50%',
-                                                    background: isPassed ? '#10b981' : '#e2e8f0',
-                                                    color: isPassed ? '#fff' : '#64748b',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    margin: '0 auto 6px',
-                                                    fontSize: '12px',
-                                                    fontWeight: 700,
-                                                    boxShadow: isCurrent ? '0 0 0 4px #d1fae5' : 'none',
-                                                }}
-                                            >
-                                                {idx + 1}
-                                            </div>
-                                            <span style={{ fontSize: '12px', fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#047857' : '#64748b', textTransform: 'capitalize' }}>
-                                                {step}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Items list if available */}
-                        {order.items && order.items.length > 0 && (
-                            <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', marginTop: '16px' }}>
-                                <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#475569' }}>Dishes in this order:</h4>
-                                {order.items.map(item => (
-                                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px', color: '#334155' }}>
-                                        <span>
-                                            {item.quantity}x {item.item_name}
-                                            {item.notes && <em style={{ color: '#64748b', marginLeft: '6px' }}>({item.notes})</em>}
+                            return (
+                                <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '12px 16px', fontWeight: 700, color: '#2563eb' }}>
+                                        {ord.order_code}
+                                    </td>
+                                    <td style={{ padding: '12px 16px', fontWeight: 600 }}>
+                                        {ord.table_number || ord.room_number || 'Takeaway'}
+                                    </td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                        <span style={{ background: statusColor, color: '#fff', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, textTransform: 'capitalize' }}>
+                                            {ord.status}
                                         </span>
-                                        <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
+                                    </td>
+                                    <td style={{ padding: '12px 16px', fontWeight: 700, color: velocity.badge }}>
+                                        ⏱️ {velocity.text}
+                                    </td>
+                                    <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#059669' }}>
+                                        ₹{ord.total.toFixed(2)}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };

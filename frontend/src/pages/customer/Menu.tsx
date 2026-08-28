@@ -357,10 +357,19 @@ const Menu: React.FC = () => {
 
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                        onClick={() => navigate('/history')}
-                        style={{ padding: '8px 16px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, color: '#334155' }}
+                        onClick={() => {
+                            setShowOrdersBanner(true);
+                            const el = document.getElementById('active-orders-section');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        style={{ padding: '8px 16px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}
                     >
-                        Detailed History
+                        <span>📦 Track Order Status</span>
+                        {activeOrders.length > 0 && (
+                            <span style={{ background: '#3b82f6', color: '#fff', padding: '1px 7px', borderRadius: '10px', fontSize: '11px' }}>
+                                {activeOrders.length}
+                            </span>
+                        )}
                     </button>
                     <button
                         onClick={() => navigate('/frontdesk')}
@@ -380,7 +389,7 @@ const Menu: React.FC = () => {
 
             {/* ACTIVE ORDERS & STATUS TRACKER FOR CURRENT VISIT */}
             {activeOrders.length > 0 && showOrdersBanner && (
-                <div style={{ background: '#0f172a', borderRadius: '14px', padding: '20px', color: '#f8fafc', marginBottom: '24px', border: '1px solid #334155', boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}>
+                <div id="active-orders-section" style={{ background: '#0f172a', borderRadius: '14px', padding: '20px', color: '#f8fafc', marginBottom: '24px', border: '1px solid #334155', boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ fontSize: '20px' }}>📦</span>
