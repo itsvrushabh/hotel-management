@@ -123,16 +123,31 @@ const FrontDeskView: React.FC = () => {
         setTimeout(() => setToastMessage(null), 3500);
     };
 
-    // Open Billing Modal for Table
+    // Open Billing Modal for Table (with unified Room & Restaurant Guest Folio)
     const handleOpenTableBilling = (tableName: string) => {
         setSelectedTable(tableName);
         setGeneratedBill(null);
 
-        // Find all orders associated with this table that are not cancelled
-        const ordersForTable = allOrders.filter(
+        // 1. Direct orders for this table/room
+        const directOrders = allOrders.filter(
             o => (o.table_number === tableName || o.room_number === tableName) && o.status !== 'cancelled'
         );
-        setTableOrders(ordersForTable);
+
+        // 2. Lookup if this in-house guest has orders across both Room Service and Restaurant
+        const custId = directOrders.find(o => o.customer_id)?.customer_id;
+        const custPhone = directOrders.find(o => o.customer?.phone)?.customer?.phone;
+
+        let unifiedOrders = directOrders;
+        if (custId || custPhone) {
+            const allGuestOrders = allOrders.filter(
+                o => ((custId && o.customer_id === custId) || (custPhone && o.customer?.phone === custPhone)) && o.status !== 'cancelled'
+            );
+            if (allGuestOrders.length > directOrders.length) {
+                unifiedOrders = allGuestOrders;
+            }
+        }
+
+        setTableOrders(unifiedOrders);
     };
 
     // Process Consolidated Settlement

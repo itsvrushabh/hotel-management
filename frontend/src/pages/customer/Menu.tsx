@@ -60,8 +60,8 @@ const Menu: React.FC = () => {
     const [loginName, setLoginName] = useState(customer?.name || '');
     const [loginTable, setLoginTable] = useState(customer?.tableNumber || 'Table 1');
     const [recognizedName, setRecognizedName] = useState<string | null>(null);
+    const [allocatedRoom, setAllocatedRoom] = useState<string | null>(null);
     const [loginError, setLoginError] = useState<string | null>(null);
-
     // Menu & Active Orders State
     const [items, setItems] = useState<MenuItemData[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -91,8 +91,24 @@ const Menu: React.FC = () => {
                 .catch(() => {
                     setRecognizedName(null);
                 });
+
+            // Check if guest has an allocated room
+            fetch(`${API_BASE}/api/orders`)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        const roomOrd = data.find((o: any) => o.room_number && ((o.customer && o.customer.phone === clean) || o.customer_id));
+                        if (roomOrd && roomOrd.room_number) {
+                            setAllocatedRoom(roomOrd.room_number);
+                        } else {
+                            setAllocatedRoom(null);
+                        }
+                    }
+                })
+                .catch(() => setAllocatedRoom(null));
         } else {
             setRecognizedName(null);
+            setAllocatedRoom(null);
         }
     }, [loginPhone]);
 
@@ -248,6 +264,23 @@ const Menu: React.FC = () => {
                                 <span style={{ fontSize: '12px', color: '#059669', display: 'block', marginTop: '4px', fontWeight: 600 }}>
                                     ✨ Welcome back, {recognizedName}!
                                 </span>
+                            )}
+                            {allocatedRoom && (
+                                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', padding: '10px', borderRadius: '8px', marginTop: '8px', fontSize: '12px' }}>
+                                    <strong style={{ color: '#166534', display: 'block', marginBottom: '2px' }}>
+                                        🏨 In-House Guest: Allocated to {allocatedRoom}
+                                    </strong>
+                                    <span style={{ color: '#15803d', display: 'block', marginBottom: '6px' }}>
+                                        Dining at a restaurant table or ordering in-room delivery?
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/room')}
+                                        style={{ padding: '4px 10px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                                    >
+                                        🛎️ Open In-Room Dining for {allocatedRoom} →
+                                    </button>
+                                </div>
                             )}
                         </div>
 

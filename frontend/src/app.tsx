@@ -6,7 +6,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { CustomerProvider } from './context/CustomerContext';
-import { Menu, Cart, Checkout, OrderHistory, OwnerDashboard, KitchenDisplay, WaiterPOS, WaiterView, FrontDeskView } from './pages';
+import { Menu, Cart, Checkout, OrderHistory, OwnerDashboard, KitchenDisplay, WaiterPOS, WaiterView, FrontDeskView, RoomServiceView } from './pages';
 
 export const App: React.FC = () => {
     return (
@@ -26,6 +26,8 @@ export const App: React.FC = () => {
                     <Route path="/staff/waiter" element={<WaiterView />} />
                     <Route path="/frontdesk" element={<FrontDeskView />} />
                     <Route path="/staff/frontdesk" element={<FrontDeskView />} />
+                    <Route path="/room" element={<RoomServiceView />} />
+                    <Route path="/service/room" element={<RoomServiceView />} />
                     <Route
                         path="*"
                         element={
