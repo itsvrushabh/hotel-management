@@ -5,11 +5,13 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
+import { CustomerProvider } from './context/CustomerContext';
 import { Menu, Cart, Checkout, OrderHistory, OwnerDashboard, KitchenDisplay, WaiterPOS, WaiterView, FrontDeskView } from './pages';
 
 export const App: React.FC = () => {
     return (
-        <CartProvider>
+        <CustomerProvider>
+            <CartProvider>
             <BrowserRouter>
                 <Routes>
                     <Route path="/" element={<Menu />} />
@@ -35,7 +37,8 @@ export const App: React.FC = () => {
                     />
                 </Routes>
             </BrowserRouter>
-        </CartProvider>
+            </CartProvider>
+        </CustomerProvider>
     );
 };
 

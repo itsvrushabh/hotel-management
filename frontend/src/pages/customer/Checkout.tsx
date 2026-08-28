@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
+import { useCustomer } from '../../context/CustomerContext';
 const API_BASE = typeof window !== 'undefined' ? window.location.origin : '';
 
 interface PlacedOrderResult {
@@ -17,12 +18,13 @@ interface PlacedOrderResult {
 const Checkout: React.FC = () => {
     const navigate = useNavigate();
     const { items, subtotal, tax, total, clearCart } = useCart();
+    const { customer } = useCustomer();
 
-    const [phone, setPhone] = useState('');
-    const [name, setName] = useState('');
-    const [orderType, setOrderType] = useState('dine_in');
-    const [tableNumber, setTableNumber] = useState('');
-    const [roomNumber, setRoomNumber] = useState('');
+    const [phone, setPhone] = useState(customer?.phone || '');
+    const [name, setName] = useState(customer?.name || '');
+    const [orderType, setOrderType] = useState(customer?.diningMode || 'dine_in');
+    const [tableNumber, setTableNumber] = useState(customer?.tableNumber || 'Table 1');
+    const [roomNumber, setRoomNumber] = useState(customer?.roomNumber || '');
     const [generalNotes, setGeneralNotes] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
