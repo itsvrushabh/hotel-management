@@ -4,28 +4,39 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Menu, Cart, Checkout, OrderHistory, OwnerDashboard, KitchenDisplay } from './pages';
+import { CartProvider } from './context/CartContext';
+import { Menu, Cart, Checkout, OrderHistory, OwnerDashboard, KitchenDisplay, WaiterPOS } from './pages';
 
-const routes = [
-    { path: '/', component: Menu },
-    { path: '/cart', component: Cart },
-    { path: '/checkout', component: Checkout },
-    { path: '/history', component: OrderHistory },
-    { path: '/admin', component: OwnerDashboard },
-    { path: '/staff', component: KitchenDisplay },
-    { path: '*', component: () => <div><p>Not found</p></div> },
-];
+export const App: React.FC = () => {
+    return (
+        <CartProvider>
+            <BrowserRouter>
+                <Routes>
+                    <Route path="/" element={<Menu />} />
+                    <Route path="/cart" element={<Cart />} />
+                    <Route path="/checkout" element={<Checkout />} />
+                    <Route path="/history" element={<OrderHistory />} />
+                    <Route path="/admin" element={<OwnerDashboard />} />
+                    <Route path="/staff" element={<KitchenDisplay />} />
+                    <Route path="/pos" element={<WaiterPOS />} />
+                    <Route path="/staff/pos" element={<WaiterPOS />} />
+                    <Route
+                        path="*"
+                        element={
+                            <div style={{ textAlign: 'center', padding: '50px', fontFamily: 'system-ui, sans-serif' }}>
+                                <h2>404 - Page Not Found</h2>
+                                <a href="/" style={{ color: '#2563eb' }}>Return to Menu</a>
+                            </div>
+                        }
+                    />
+                </Routes>
+            </BrowserRouter>
+        </CartProvider>
+    );
+};
 
 const container = document.getElementById('root');
 if (container) {
     const root = ReactDOM.createRoot(container);
-    root.render(
-        <BrowserRouter>
-            <Routes>
-                {routes.map(route => (
-                    <Route key={route.path} path={route.path} element={<route.component />} />
-                ))}
-            </Routes>
-        </BrowserRouter>
-    );
+    root.render(<App />);
 }

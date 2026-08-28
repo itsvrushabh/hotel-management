@@ -1,11 +1,13 @@
 // hotel-backend/src/main.rs
 // Axum API server for hotel management system
 
-use axum::http::{HeaderName, HeaderValue, Method};
-use axum::Router;
+use axum::extract::State;
+use axum::http::{HeaderName, Method, StatusCode};
+use axum::routing::get;
+use axum::{Json, Router};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
-use tower_http::cors::CorsLayer;
+use tower_http::cors::{Any, CorsLayer};
 
 // Modules
 mod handlers;
@@ -13,11 +15,28 @@ mod models;
 
 // Handlers
 use crate::handlers::{
-    billing_service, customer_service, inventory_service, order_service, recipe_service,
+    analytics_service, auth_service, billing_service, customer_service, inventory_service,
+    menu_item_service, order_service, recipe_service,
 };
 
 fn setup_logging() {
     tracing_subscriber::fmt::init();
+}
+
+async fn health_check(State(pool): State<PgPool>) -> Result<Json<serde_json::Value>, StatusCode> {
+    sqlx::query("SELECT 1")
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Database health check failed: {:?}", e);
+            StatusCode::SERVICE_UNAVAILABLE
+        })?;
+
+    Ok(Json(serde_json::json!({
+        "status": "healthy",
+        "service": "hotel-backend",
+        "database": "connected"
+    })))
 }
 
 #[tokio::main]
@@ -33,30 +52,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing::info!("Database connected");
 
     // Initialize tables
-    sqlx::migrate!().run(&pool).await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
     tracing::info!("Database initialized");
 
-    // CORS setup
+    // CORS setup allowing dev frontend requests
     let cors = CorsLayer::new()
-        .allow_origin(
-            "http://localhost:3000"
-                .parse::<HeaderValue>()
-                .unwrap_or_else(|_| HeaderValue::from_static("http://localhost:3000")),
-        )
+        .allow_origin(Any)
         .allow_methods([
             Method::GET,
             Method::POST,
             Method::PUT,
             Method::DELETE,
             Method::PATCH,
+            Method::OPTIONS,
         ])
         .allow_headers([
             HeaderName::from_static("authorization"),
             HeaderName::from_static("content-type"),
+            HeaderName::from_static("accept"),
         ]);
 
     // Create API router
     let app = Router::new()
+        .route("/health", get(health_check).with_state(pool.clone()))
+        .route("/api/health", get(health_check).with_state(pool.clone()))
+        .nest("/api/auth", auth_service(pool.clone()))
+        .nest("/api/analytics", analytics_service(pool.clone()))
+        .nest("/api/menu-items", menu_item_service(pool.clone()))
         .nest("/api/orders", order_service(pool.clone()))
         .nest("/api/recipes", recipe_service(pool.clone()))
         .nest("/api/customers", customer_service(pool.clone()))
@@ -65,8 +87,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .layer(cors);
 
     // Start server
-    let listener = TcpListener::bind("0.0.0.0:8080").await?;
-    tracing::info!("Server listening on http://0.0.0.0:8080");
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = TcpListener::bind(&addr).await?;
+    tracing::info!("Server listening on http://{}", addr);
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async {

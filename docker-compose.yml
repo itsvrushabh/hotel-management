@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hotel-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hotel_pass
+      POSTGRES_PASSWORD: hotel_pass
+      POSTGRES_DB: hotel_management
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hotel_pass -d hotel_management"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: hotel-backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://hotel_pass:hotel_pass@postgres:5432/hotel_management
+      PORT: "8080"
+      RUST_LOG: info
+    ports:
+      - "8088:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      start_period: 3s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hotel-frontend
+    restart: unless-stopped
+    environment:
+      PORT: "3000"
+      BACKEND_INTERNAL_URL: "http://backend:8080"
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/health > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      start_period: 3s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
