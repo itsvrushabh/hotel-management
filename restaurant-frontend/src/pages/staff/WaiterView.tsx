@@ -48,9 +48,9 @@ const WaiterView: React.FC = () => {
     const [orderType, setOrderType] = useState('dine_in');
     const [phone, setPhone] = useState('');
     const [customerName, setCustomerName] = useState('');
+    const [allocatedRoom, setAllocatedRoom] = useState<string | null>(null);
     const [existingCustomerFound, setExistingCustomerFound] = useState(false);
     const [orderNotes, setOrderNotes] = useState('');
-
     // Submission states
     const [submitting, setSubmitting] = useState(false);
     const [lastSubmittedCode, setLastSubmittedCode] = useState<string | null>(null);
@@ -83,8 +83,23 @@ const WaiterView: React.FC = () => {
                 .catch(() => {
                     setExistingCustomerFound(false);
                 });
+
+            fetch(`${API_BASE}/api/orders`)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        const roomOrd = data.find((o: any) => o.room_number && ((o.customer && o.customer.phone === cleanPhone) || o.customer_id));
+                        if (roomOrd && roomOrd.room_number) {
+                            setAllocatedRoom(roomOrd.room_number);
+                        } else {
+                            setAllocatedRoom(null);
+                        }
+                    }
+                })
+                .catch(() => setAllocatedRoom(null));
         } else {
             setExistingCustomerFound(false);
+            setAllocatedRoom(null);
         }
     }, [phone]);
 
@@ -157,6 +172,7 @@ const WaiterView: React.FC = () => {
             customer_name: customerName.trim() ? customerName.trim() : undefined,
             order_type: orderType,
             table_number: tableNumber,
+            room_number: allocatedRoom || undefined,
             notes: orderNotes.trim() ? orderNotes.trim() : undefined,
             items: ticketItems.map(i => ({
                 menu_item_id: i.menu_item_id,

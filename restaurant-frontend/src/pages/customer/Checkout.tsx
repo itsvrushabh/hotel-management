@@ -46,12 +46,14 @@ const Checkout: React.FC = () => {
         setSubmitting(true);
         setError(null);
 
+        const attachedRoom = customer?.roomNumber || (roomNumber.trim() ? roomNumber.trim() : undefined);
+
         const orderPayload = {
             customer_phone: phone.trim(),
             customer_name: name.trim() ? name.trim() : undefined,
             order_type: orderType,
             table_number: orderType === 'dine_in' ? tableNumber.trim() : undefined,
-            room_number: orderType === 'room_service' ? roomNumber.trim() : undefined,
+            room_number: attachedRoom,
             notes: generalNotes.trim() ? generalNotes.trim() : undefined,
             items: items.map(i => ({
                 menu_item_id: i.menuItemId,

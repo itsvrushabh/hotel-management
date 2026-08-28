@@ -193,6 +193,7 @@ const Menu: React.FC = () => {
             phone: clean,
             name: (loginName || recognizedName || '').trim() || undefined,
             tableNumber: loginTable,
+            roomNumber: allocatedRoom || undefined,
             diningMode: 'dine_in',
         });
         setLoginError(null);
@@ -265,23 +266,7 @@ const Menu: React.FC = () => {
                                     ✨ Welcome back, {recognizedName}!
                                 </span>
                             )}
-                            {allocatedRoom && (
-                                <div style={{ background: '#f0fdf4', border: '1px solid #86efac', padding: '10px', borderRadius: '8px', marginTop: '8px', fontSize: '12px' }}>
-                                    <strong style={{ color: '#166534', display: 'block', marginBottom: '2px' }}>
-                                        🏨 In-House Guest: Allocated to {allocatedRoom}
-                                    </strong>
-                                    <span style={{ color: '#15803d', display: 'block', marginBottom: '6px' }}>
-                                        Dining at a restaurant table or ordering in-room delivery?
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/room')}
-                                        style={{ padding: '4px 10px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
-                                    >
-                                        🛎️ Open In-Room Dining for {allocatedRoom} →
-                                    </button>
-                                </div>
-                            )}
+
                         </div>
 
                         <div style={{ marginBottom: '16px' }}>

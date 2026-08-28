@@ -527,18 +527,22 @@ const RestaurantFrontDeskView: React.FC = () => {
             {/* RESTAURANT SETTLEMENT MODAL */}
             {selectedLocation && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-                    <div style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '16px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', color: '#f8fafc' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px', marginBottom: '16px' }}>
-                            <div>
-                                <h2 style={{ margin: 0, fontSize: '20px', color: '#f8fafc' }}>
-                                    🧾 Restaurant Bill for {selectedLocation}
-                                </h2>
-                                <span style={{ fontSize: '13px', color: '#94a3b8' }}>
-                                    {locationOrders.length} ticket(s) on this table/bar tab
-                                </span>
-                            </div>
-                            <button onClick={() => setSelectedLocation(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-                        </div>
+                    {(() => {
+                        const locationCustomer = locationOrders.find(o => o.customer)?.customer;
+                        return (
+                            <div style={{ background: '#1e293b', border: '1px solid #475569', borderRadius: '16px', width: '100%', maxWidth: '620px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', color: '#f8fafc' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '14px', marginBottom: '16px' }}>
+                                    <div>
+                                        <h2 style={{ margin: 0, fontSize: '20px', color: '#f8fafc' }}>
+                                            🧾 Restaurant Bill for {selectedLocation}
+                                        </h2>
+                                        <span style={{ fontSize: '13px', color: '#94a3b8' }}>
+                                            {locationOrders.length} ticket(s) on this table/bar tab
+                                        </span>
+                                    </div>
+                                    <button onClick={() => setSelectedLocation(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+                                </div>
+
 
                         {/* Order Tickets */}
                         <div style={{ marginBottom: '16px' }}>
@@ -573,49 +577,110 @@ const RestaurantFrontDeskView: React.FC = () => {
                                 <span style={{ color: '#34d399' }}>₹{consolidatedTotal.toFixed(2)}</span>
                             </div>
                         </div>
+                        {/* Detected In-House Room Banner */}
+                        {(() => {
+                            const detectedRoom = locationOrders.find(o => o.room_number)?.room_number ||
+                                (locationCustomer?.phone ? allOrders.find(o => o.room_number && o.customer?.phone === locationCustomer.phone)?.room_number : null);
+
+                            if (!detectedRoom) return null;
+
+                            return (
+                                <div style={{ background: '#172554', border: '1px solid #3b82f6', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                                    <div>
+                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#93c5fd', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>
+                                            🏨 In-House Guest Detected
+                                        </span>
+                                        <strong style={{ color: '#60a5fa', fontSize: '14px' }}>
+                                            Allocated to {detectedRoom} {locationCustomer?.name ? `(${locationCustomer.name})` : ''}
+                                        </strong>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPaymentMethod('room_charge')}
+                                        style={{
+                                            padding: '8px 14px',
+                                            background: paymentMethod === 'room_charge' ? '#2563eb' : '#0f172a',
+                                            color: '#fff',
+                                            border: '1px solid #3b82f6',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {paymentMethod === 'room_charge' ? `✓ Added to ${detectedRoom} Bill` : `+ Add to ${detectedRoom} Bill`}
+                                    </button>
+                                </div>
+                            );
+                        })()}
 
                         {!generatedBill ? (
                             <div>
                                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#94a3b8', marginBottom: '6px' }}>SELECT PAYMENT METHOD</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
-                                    {[
-                                        { id: 'cash', label: '💵 Cash' },
-                                        { id: 'upi', label: '📱 UPI / QR' },
-                                        { id: 'card', label: '💳 Card' },
-                                        { id: 'room_charge', label: '🏨 Post to Room' },
-                                    ].map(pm => (
-                                        <button
-                                            key={pm.id}
-                                            onClick={() => setPaymentMethod(pm.id as any)}
-                                            style={{
-                                                padding: '10px 6px',
-                                                borderRadius: '6px',
-                                                border: paymentMethod === pm.id ? '2px solid #38bdf8' : '1px solid #475569',
-                                                background: paymentMethod === pm.id ? '#0284c7' : '#0f172a',
-                                                color: '#fff',
-                                                fontSize: '12px',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                            }}
-                                        >
-                                            {pm.label}
-                                        </button>
-                                    ))}
+                                    {(() => {
+                                        const detectedRoom = locationOrders.find(o => o.room_number)?.room_number ||
+                                            (locationCustomer?.phone ? allOrders.find(o => o.room_number && o.customer?.phone === locationCustomer.phone)?.room_number : null);
+
+                                        return [
+                                            { id: 'cash', label: '💵 Cash' },
+                                            { id: 'upi', label: '📱 UPI / QR' },
+                                            { id: 'card', label: '💳 Card' },
+                                            { id: 'room_charge', label: detectedRoom ? `🏨 ${detectedRoom} Bill` : '🏨 Post to Room' },
+                                        ].map(pm => (
+                                            <button
+                                                key={pm.id}
+                                                onClick={() => setPaymentMethod(pm.id as any)}
+                                                style={{
+                                                    padding: '10px 6px',
+                                                    borderRadius: '6px',
+                                                    border: paymentMethod === pm.id ? '2px solid #38bdf8' : '1px solid #475569',
+                                                    background: paymentMethod === pm.id ? '#0284c7' : '#0f172a',
+                                                    color: '#fff',
+                                                    fontSize: '12px',
+                                                    fontWeight: 600,
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                {pm.label}
+                                            </button>
+                                        ));
+                                    })()}
                                 </div>
 
                                 <button
                                     onClick={handleProcessSettlement}
                                     disabled={settling || locationOrders.length === 0}
-                                    style={{ width: '100%', padding: '14px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '16px', cursor: 'pointer' }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px',
+                                        background: paymentMethod === 'room_charge' ? '#2563eb' : '#10b981',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontWeight: 700,
+                                        fontSize: '16px',
+                                        cursor: 'pointer',
+                                    }}
                                 >
-                                    {settling ? 'Settling Payment...' : `Complete Payment & Print Bill (₹${consolidatedTotal.toFixed(2)})`}
+                                    {settling
+                                        ? 'Processing Settlement...'
+                                        : paymentMethod === 'room_charge'
+                                        ? `🏨 Post ₹${consolidatedTotal.toFixed(2)} to Room Stay Bill`
+                                        : `Complete Payment & Print Bill (₹${consolidatedTotal.toFixed(2)})`}
                                 </button>
                             </div>
                         ) : (
                             <div style={{ background: '#064e3b', border: '1px solid #10b981', borderRadius: '10px', padding: '16px', textAlign: 'center' }}>
                                 <div style={{ fontSize: '28px', marginBottom: '6px' }}>✅</div>
                                 <h3 style={{ margin: '0 0 4px', color: '#6ee7b7' }}>Settlement Complete!</h3>
-                                <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#a7f3d0' }}>Bill <strong>BILL-{generatedBill.id}</strong> issued. Table marked clean.</p>
+                                <p style={{ margin: '0 0 14px', fontSize: '13px', color: '#a7f3d0' }}>
+                                    {paymentMethod === 'room_charge' ? (
+                                        <>Bill <strong>BILL-{generatedBill.id}</strong> (₹{consolidatedTotal.toFixed(2)}) posted to <strong>Room Master Stay Folio</strong>. Guest will settle during room checkout.</>
+                                    ) : (
+                                        <>Bill <strong>BILL-{generatedBill.id}</strong> issued. Table marked clean.</>
+                                    )}
+                                </p>
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <a
                                         href={`${API_BASE}/api/billing/${generatedBill.id}/pdf`}
@@ -630,6 +695,8 @@ const RestaurantFrontDeskView: React.FC = () => {
                             </div>
                         )}
                     </div>
+                        );
+                    })()}
                 </div>
             )}
         </div>
