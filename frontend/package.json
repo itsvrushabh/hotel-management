@@ -1,0 +1,13 @@
+{
+  "name": "hotel-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "react": "^19",
+    "react-dom": "^19",
+    "react-router-dom": "^7"
+  },
+  "devDependencies": {
+    "typescript": "^7"
+  }
+}
