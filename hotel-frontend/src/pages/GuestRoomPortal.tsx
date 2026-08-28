@@ -33,6 +33,9 @@ const GuestRoomPortal: React.FC = () => {
     const [loginName, setLoginName] = useState(guest?.name || '');
     const [recognizedName, setRecognizedName] = useState<string | null>(null);
 
+    // Service Tab Navigation State
+    const [activeServiceTab, setActiveServiceTab] = useState<'portal' | 'dining' | 'laundry' | 'amenities'>('portal');
+
     // Food Catalog & Orders State
     const [foodMenu, setFoodMenu] = useState<FoodItem[]>([]);
     const [activeServiceTickets, setActiveServiceTickets] = useState<any[]>([]);
@@ -273,223 +276,281 @@ const GuestRoomPortal: React.FC = () => {
                 </div>
             )}
 
-            {/* Quick Service Cards Bar */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '28px' }}>
-                <div
-                    onClick={() => {
-                        const el = document.getElementById('in-room-dining-section');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    style={{ background: '#1e3a5f', padding: '16px', borderRadius: '12px', border: '1px solid #0284c7', cursor: 'pointer' }}
-                >
-                    <div style={{ fontSize: '28px', marginBottom: '4px' }}>🛎️</div>
-                    <strong style={{ fontSize: '15px', color: '#38bdf8' }}>In-Room Dining</strong>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#cbd5e1' }}>24/7 food, snacks & beverages delivery</p>
-                </div>
-
-                <div
-                    onClick={() => navigate('/laundry')}
-                    style={{ background: '#251733', padding: '16px', borderRadius: '12px', border: '1px solid #a855f7', cursor: 'pointer' }}
-                >
-                    <div style={{ fontSize: '28px', marginBottom: '4px' }}>🧺</div>
-                    <strong style={{ fontSize: '15px', color: '#d8b4fe' }}>Laundry & Dry Cleaning</strong>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#cbd5e1' }}>Wash, fold & express steam iron pickup</p>
-                </div>
-
-                <div
-                    onClick={() => navigate('/amenities')}
-                    style={{ background: '#132822', padding: '16px', borderRadius: '12px', border: '1px solid #10b981', cursor: 'pointer' }}
-                >
-                    <div style={{ fontSize: '28px', marginBottom: '4px' }}>🧻</div>
-                    <strong style={{ fontSize: '15px', color: '#6ee7b7' }}>Housekeeping & Amenities</strong>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#cbd5e1' }}>Extra towels, toiletries & room maintenance</p>
-                </div>
-
-                <div
-                    onClick={() => navigate('/concierge')}
-                    style={{ background: '#2d1a15', padding: '16px', borderRadius: '12px', border: '1px solid #f97316', cursor: 'pointer' }}
-                >
-                    <div style={{ fontSize: '28px', marginBottom: '4px' }}>🧳</div>
-                    <strong style={{ fontSize: '15px', color: '#fdba74' }}>Bell Desk & Concierge</strong>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#cbd5e1' }}>Luggage assistance & wakeup calls</p>
-                </div>
+            {/* Persistent Service Tab Navigation Bar */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '2px solid #1e3a5f', paddingBottom: '0', flexWrap: 'wrap' }}>
+                {[
+                    { id: 'portal' as const, label: '🏠 Room Hub', color: '#38bdf8' },
+                    { id: 'dining' as const, label: '🛎️ In-Room Dining', color: '#0284c7' },
+                    { id: 'laundry' as const, label: '🧺 Laundry', color: '#a855f7' },
+                    { id: 'amenities' as const, label: '🧻 Housekeeping', color: '#10b981' },
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveServiceTab(tab.id)}
+                        style={{
+                            padding: '12px 20px',
+                            background: activeServiceTab === tab.id ? tab.color : '#0b192c',
+                            color: activeServiceTab === tab.id ? '#fff' : '#94a3b8',
+                            border: activeServiceTab === tab.id ? `2px solid ${tab.color}` : '1px solid #1e3a5f',
+                            borderRadius: '8px 8px 0 0',
+                            fontWeight: 700,
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            borderBottom: activeServiceTab === tab.id ? '2px solid #0b192c' : 'none',
+                            marginBottom: activeServiceTab === tab.id ? '-2px' : '0',
+                        }}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
             </div>
 
-            {/* Active Room Orders Tracker */}
-            {activeServiceTickets.length > 0 && (
-                <div style={{ background: '#132337', padding: '20px', borderRadius: '14px', border: '1px solid #1e3a5f', marginBottom: '28px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #1e3a5f', paddingBottom: '8px' }}>
-                        <h3 style={{ margin: 0, fontSize: '17px', color: '#60a5fa' }}>
-                            📦 Active Room Service Deliveries for {guest?.roomNumber} ({activeServiceTickets.length})
-                        </h3>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>Charges posted to Master Room Folio</span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-                        {activeServiceTickets.map(ticket => (
-                            <div key={ticket.id} style={{ background: '#0b192c', padding: '12px 14px', borderRadius: '8px', border: '1px solid #1e3a5f' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                    <strong style={{ color: '#38bdf8' }}>{ticket.order_code}</strong>
-                                    <span style={{ background: ticket.status === 'served' ? '#047857' : '#d97706', color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>
-                                        {ticket.status.toUpperCase()}
-                                    </span>
-                                </div>
-                                <div style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>
-                                    {ticket.notes || 'In-Room Meal Delivery'}
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e3a5f', paddingTop: '4px', fontSize: '13px' }}>
-                                    <span style={{ color: '#94a3b8' }}>Total:</span>
-                                    <strong style={{ color: '#34d399' }}>₹{ticket.total.toFixed(2)}</strong>
-                                </div>
+            {/* Service Content Based on Active Tab */}
+            {activeServiceTab === 'portal' && (
+                <>
+                    {/* Active Room Orders Tracker */}
+                    {activeServiceTickets.length > 0 && (
+                        <div style={{ background: '#132337', padding: '20px', borderRadius: '14px', border: '1px solid #1e3a5f', marginBottom: '28px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #1e3a5f', paddingBottom: '8px' }}>
+                                <h3 style={{ margin: 0, fontSize: '17px', color: '#60a5fa' }}>
+                                    📦 Active Room Service Deliveries for {guest?.roomNumber} ({activeServiceTickets.length})
+                                </h3>
+                                <span style={{ fontSize: '12px', color: '#94a3b8' }}>Charges posted to Master Room Folio</span>
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
 
-            {/* In-Room Dining Menu Section */}
-            <div id="in-room-dining-section" style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px', alignItems: 'start' }}>
-                <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <div>
-                            <h2 style={{ margin: 0, fontSize: '20px', color: '#f8fafc' }}>🛎️ In-Room Dining Menu</h2>
-                            <p style={{ margin: '2px 0 0', color: '#94a3b8', fontSize: '13px' }}>Delivered fresh and hot to {guest?.roomNumber}</p>
-                        </div>
-                    </div>
-
-                    {/* Category Filter */}
-                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px' }}>
-                        {categories.map(c => (
-                            <button
-                                key={c}
-                                onClick={() => setFoodCategory(c)}
-                                style={{
-                                    padding: '8px 16px',
-                                    borderRadius: '20px',
-                                    border: foodCategory === c ? '2px solid #38bdf8' : '1px solid #1e3a5f',
-                                    background: foodCategory === c ? '#0284c7' : '#132337',
-                                    color: '#fff',
-                                    fontWeight: 600,
-                                    fontSize: '13px',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                {c}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Dishes Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
-                        {filteredFood.map(dish => (
-                            <div
-                                key={dish.id}
-                                style={{
-                                    background: '#132337',
-                                    border: '1px solid #1e3a5f',
-                                    borderRadius: '12px',
-                                    padding: '14px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'space-between',
-                                }}
-                            >
-                                <div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                        <strong style={{ fontSize: '15px', color: '#f8fafc' }}>{dish.name}</strong>
-                                        <span style={{ color: '#34d399', fontWeight: 700 }}>₹{dish.price}</span>
-                                    </div>
-                                    <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#94a3b8' }}>{dish.description}</p>
-                                </div>
-                                <button
-                                    onClick={() => addItem({ id: dish.id, name: dish.name, category: dish.category, price: dish.price }, 1, '')}
-                                    style={{ width: '100%', padding: '8px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-                                >
-                                    + Add to Room Tray
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Right: Room Tray */}
-                <div style={{ background: '#132337', border: '1px solid #1e3a5f', borderRadius: '16px', padding: '20px', position: 'sticky', top: '20px' }}>
-                    <h3 style={{ margin: '0 0 14px', fontSize: '18px', color: '#60a5fa', borderBottom: '1px solid #1e3a5f', paddingBottom: '8px' }}>
-                        🛎️ Room Service Tray ({totalItems})
-                    </h3>
-
-                    {cartItems.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: '#94a3b8', padding: '24px 0', fontSize: '13px' }}>
-                            Your room tray is empty. Tap dishes on the left to add to {guest?.roomNumber}.
-                        </p>
-                    ) : (
-                        <div>
-                            <div style={{ maxHeight: '260px', overflowY: 'auto', marginBottom: '12px' }}>
-                                {cartItems.map(it => (
-                                    <div key={it.id} style={{ background: '#0b192c', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1e3a5f' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                                {activeServiceTickets.map(ticket => (
+                                    <div key={ticket.id} style={{ background: '#0b192c', padding: '12px 14px', borderRadius: '8px', border: '1px solid #1e3a5f' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                            <strong style={{ fontSize: '13px', color: '#f8fafc' }}>{it.name}</strong>
-                                            <span style={{ color: '#34d399', fontWeight: 700 }}>₹{it.price * it.quantity}</span>
+                                            <strong style={{ color: '#38bdf8' }}>{ticket.order_code}</strong>
+                                            <span style={{ background: ticket.status === 'served' ? '#047857' : '#d97706', color: '#fff', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 700 }}>
+                                                {ticket.status.toUpperCase()}
+                                            </span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                                <button onClick={() => updateQuantity(it.id, it.quantity - 1)} style={{ padding: '2px 8px', border: '1px solid #1e3a5f', background: '#132337', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>-</button>
-                                                <span style={{ fontSize: '12px', fontWeight: 600 }}>{it.quantity}</span>
-                                                <button onClick={() => updateQuantity(it.id, it.quantity + 1)} style={{ padding: '2px 8px', border: '1px solid #1e3a5f', background: '#132337', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>+</button>
-                                            </div>
-                                            <button onClick={() => removeItem(it.id)} style={{ background: 'none', border: 'none', color: '#f87171', fontSize: '12px', cursor: 'pointer' }}>Remove</button>
+                                        <div style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '6px' }}>
+                                            {ticket.notes || 'In-Room Meal Delivery'}
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e3a5f', paddingTop: '4px', fontSize: '13px' }}>
+                                            <span style={{ color: '#94a3b8' }}>Total:</span>
+                                            <strong style={{ color: '#34d399' }}>₹{ticket.total.toFixed(2)}</strong>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-
-                            <div style={{ marginBottom: '12px' }}>
-                                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#93c5fd', marginBottom: '4px' }}>DELIVERY INSTRUCTION</label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Ring bell twice, deliver at 8:00 AM..."
-                                    value={specialNotes}
-                                    onChange={e => setSpecialNotes(e.target.value)}
-                                    style={{ width: '100%', boxSizing: 'border-box', padding: '8px', borderRadius: '6px', border: '1px solid #1e3a5f', background: '#0b192c', color: '#f8fafc', fontSize: '12px' }}
-                                />
-                            </div>
-
-                            <div style={{ borderTop: '1px solid #1e3a5f', paddingTop: '10px', marginBottom: '14px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
-                                    <span>Subtotal:</span>
-                                    <span>₹{subtotal.toFixed(2)}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>
-                                    <span>GST (5%):</span>
-                                    <span>₹{tax.toFixed(2)}</span>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>
-                                    <span>Charge to Room Folio:</span>
-                                    <span style={{ color: '#34d399' }}>₹{total.toFixed(2)}</span>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={handleDispatchRoomFood}
-                                disabled={submitting || cartItems.length === 0}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px',
-                                    background: '#10b981',
-                                    color: '#fff',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    fontWeight: 700,
-                                    fontSize: '15px',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                {submitting ? 'Dispatching...' : `🛎️ Deliver to ${guest?.roomNumber}`}
-                            </button>
                         </div>
                     )}
-                </div>
-            </div>
+
+                    {/* Room Hub Welcome */}
+                    <div style={{ background: '#132337', padding: '32px', borderRadius: '16px', border: '1px solid #1e3a5f', textAlign: 'center', marginBottom: '28px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🏨</div>
+                        <h2 style={{ margin: '0 0 8px', fontSize: '22px', color: '#60a5fa' }}>Welcome to Your Room Hub</h2>
+                        <p style={{ margin: '0 0 20px', color: '#94a3b8', fontSize: '15px' }}>
+                            Select a service above to order in-room dining, schedule laundry pickup, or request housekeeping amenities.
+                        </p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', maxWidth: '800px', margin: '0 auto' }}>
+                            <div style={{ background: '#0b192c', padding: '16px', borderRadius: '10px', border: '1px solid #1e3a5f' }}>
+                                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🛎️</div>
+                                <strong style={{ color: '#38bdf8', fontSize: '14px' }}>In-Room Dining</strong>
+                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>24/7 food delivery</p>
+                            </div>
+                            <div style={{ background: '#0b192c', padding: '16px', borderRadius: '10px', border: '1px solid #1e3a5f' }}>
+                                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🧺</div>
+                                <strong style={{ color: '#d8b4fe', fontSize: '14px' }}>Laundry Service</strong>
+                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>Wash & dry cleaning</p>
+                            </div>
+                            <div style={{ background: '#0b192c', padding: '16px', borderRadius: '10px', border: '1px solid #1e3a5f' }}>
+                                <div style={{ fontSize: '24px', marginBottom: '4px' }}>🧻</div>
+                                <strong style={{ color: '#6ee7b7', fontSize: '14px' }}>Housekeeping</strong>
+                                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>Towels & amenities</p>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {activeServiceTab === 'dining' && (
+                <>
+                    {/* In-Room Dining Menu Section */}
+                    <div id="in-room-dining-section" style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px', alignItems: 'start' }}>
+                        <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <div>
+                                    <h2 style={{ margin: 0, fontSize: '20px', color: '#f8fafc' }}>🛎️ In-Room Dining Menu</h2>
+                                    <p style={{ margin: '2px 0 0', color: '#94a3b8', fontSize: '13px' }}>Delivered fresh and hot to {guest?.roomNumber}</p>
+                                </div>
+                            </div>
+
+                            {/* Category Filter */}
+                            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '16px' }}>
+                                {categories.map(c => (
+                                    <button
+                                        key={c}
+                                        onClick={() => setFoodCategory(c)}
+                                        style={{
+                                            padding: '8px 16px',
+                                            borderRadius: '20px',
+                                            border: foodCategory === c ? '2px solid #38bdf8' : '1px solid #1e3a5f',
+                                            background: foodCategory === c ? '#0284c7' : '#132337',
+                                            color: '#fff',
+                                            fontWeight: 600,
+                                            fontSize: '13px',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {c}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Dishes Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
+                                {filteredFood.map(dish => (
+                                    <div
+                                        key={dish.id}
+                                        style={{
+                                            background: '#132337',
+                                            border: '1px solid #1e3a5f',
+                                            borderRadius: '12px',
+                                            padding: '14px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'space-between',
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                <strong style={{ fontSize: '15px', color: '#f8fafc' }}>{dish.name}</strong>
+                                                <span style={{ color: '#34d399', fontWeight: 700 }}>₹{dish.price}</span>
+                                            </div>
+                                            <p style={{ margin: '0 0 10px', fontSize: '12px', color: '#94a3b8' }}>{dish.description}</p>
+                                        </div>
+                                        <button
+                                            onClick={() => addItem({ id: dish.id, name: dish.name, category: dish.category, price: dish.price }, 1, '')}
+                                            style={{ width: '100%', padding: '8px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
+                                        >
+                                            + Add to Room Tray
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Right: Room Tray */}
+                        <div style={{ background: '#132337', border: '1px solid #1e3a5f', borderRadius: '16px', padding: '20px', position: 'sticky', top: '20px' }}>
+                            <h3 style={{ margin: '0 0 14px', fontSize: '18px', color: '#60a5fa', borderBottom: '1px solid #1e3a5f', paddingBottom: '8px' }}>
+                                🛎️ Room Service Tray ({totalItems})
+                            </h3>
+
+                            {cartItems.length === 0 ? (
+                                <p style={{ textAlign: 'center', color: '#94a3b8', padding: '24px 0', fontSize: '13px' }}>
+                                    Your room tray is empty. Tap dishes on the left to add to {guest?.roomNumber}.
+                                </p>
+                            ) : (
+                                <div>
+                                    <div style={{ maxHeight: '260px', overflowY: 'auto', marginBottom: '12px' }}>
+                                        {cartItems.map(it => (
+                                            <div key={it.id} style={{ background: '#0b192c', padding: '10px', borderRadius: '8px', marginBottom: '8px', border: '1px solid #1e3a5f' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                    <strong style={{ fontSize: '13px', color: '#f8fafc' }}>{it.name}</strong>
+                                                    <span style={{ color: '#34d399', fontWeight: 700 }}>₹{it.price * it.quantity}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                        <button onClick={() => updateQuantity(it.id, it.quantity - 1)} style={{ padding: '2px 8px', border: '1px solid #1e3a5f', background: '#132337', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>-</button>
+                                                        <span style={{ fontSize: '12px', fontWeight: 600 }}>{it.quantity}</span>
+                                                        <button onClick={() => updateQuantity(it.id, it.quantity + 1)} style={{ padding: '2px 8px', border: '1px solid #1e3a5f', background: '#132337', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}>+</button>
+                                                    </div>
+                                                    <button onClick={() => removeItem(it.id)} style={{ background: 'none', border: 'none', color: '#f87171', fontSize: '12px', cursor: 'pointer' }}>Remove</button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div style={{ marginBottom: '12px' }}>
+                                        <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#93c5fd', marginBottom: '4px' }}>DELIVERY INSTRUCTION</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Ring bell twice, deliver at 8:00 AM..."
+                                            value={specialNotes}
+                                            onChange={e => setSpecialNotes(e.target.value)}
+                                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px', borderRadius: '6px', border: '1px solid #1e3a5f', background: '#0b192c', color: '#f8fafc', fontSize: '12px' }}
+                                        />
+                                    </div>
+
+                                    <div style={{ borderTop: '1px solid #1e3a5f', paddingTop: '10px', marginBottom: '14px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
+                                            <span>Subtotal:</span>
+                                            <span>₹{subtotal.toFixed(2)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#94a3b8', marginBottom: '6px' }}>
+                                            <span>GST (5%):</span>
+                                            <span>₹{tax.toFixed(2)}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 700, color: '#f8fafc' }}>
+                                            <span>Charge to Room Folio:</span>
+                                            <span style={{ color: '#34d399' }}>₹{total.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={handleDispatchRoomFood}
+                                        disabled={submitting || cartItems.length === 0}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px',
+                                            background: '#10b981',
+                                            color: '#fff',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            fontWeight: 700,
+                                            fontSize: '15px',
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {submitting ? 'Dispatching...' : `🛎️ Deliver to ${guest?.roomNumber}`}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {activeServiceTab === 'laundry' && (
+                <>
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🧺</div>
+                        <h2 style={{ margin: '0 0 8px', fontSize: '20px', color: '#d8b4fe' }}>Laundry Service</h2>
+                        <p style={{ margin: '0 0 20px', fontSize: '14px' }}>
+                            For laundry pickup scheduling, please use the dedicated Laundry Service page.
+                        </p>
+                        <button
+                            onClick={() => navigate('/laundry')}
+                            style={{ padding: '12px 24px', background: '#a855f7', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                            Open Laundry Service →
+                        </button>
+                    </div>
+                </>
+            )}
+
+            {activeServiceTab === 'amenities' && (
+                <>
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🧻</div>
+                        <h2 style={{ margin: '0 0 8px', fontSize: '20px', color: '#6ee7b7' }}>Housekeeping & Amenities</h2>
+                        <p style={{ margin: '0 0 20px', fontSize: '14px' }}>
+                            For housekeeping requests, please use the dedicated Amenities & Concierge page.
+                        </p>
+                        <button
+                            onClick={() => navigate('/amenities')}
+                            style={{ padding: '12px 24px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                            Open Housekeeping Service →
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
