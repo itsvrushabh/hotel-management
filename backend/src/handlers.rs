@@ -590,7 +590,10 @@ async fn update_order_status(
     Path(id): Path<i64>,
     Json(payload): Json<UpdateOrderStatus>,
 ) -> Result<Json<Order>, StatusCode> {
-    let valid_statuses = ["pending", "confirmed", "preparing", "ready", "served", "cancelled"];
+    let valid_statuses = [
+        "pending", "confirmed", "preparing", "prepared", "ready",
+        "ready_for_pickup", "delivered", "served", "cancelled",
+    ];
     if !valid_statuses.contains(&payload.status.to_lowercase().as_str()) {
         return Err(StatusCode::BAD_REQUEST);
     }

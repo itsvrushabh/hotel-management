@@ -12,3 +12,4 @@ export { default as FrontDeskView } from './staff/FrontDeskView';
 export { default as RoomServiceView } from './customer/RoomServiceView';
 export { default as HotelFrontDeskView } from './staff/HotelFrontDeskView';
 export { default as RestaurantFrontDeskView } from './staff/RestaurantFrontDeskView';
+export { default as TakeoutDeskView } from './staff/TakeoutDeskView';

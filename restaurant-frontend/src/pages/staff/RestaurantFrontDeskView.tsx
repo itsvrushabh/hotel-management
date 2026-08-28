@@ -377,10 +377,10 @@ const RestaurantFrontDeskView: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button
-                        onClick={() => navigate('/hotel-frontdesk')}
-                        style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                        onClick={() => navigate('/takeout')}
+                        style={{ padding: '8px 16px', background: '#eab308', color: '#000', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 700 }}
                     >
-                        🏨 Switch to Hotel Front Desk (Rooms) →
+                        🥡 Takeout Operations Desk →
                     </button>
                     <button
                         onClick={() => navigate('/waiter')}
@@ -388,9 +388,14 @@ const RestaurantFrontDeskView: React.FC = () => {
                     >
                         🤵 Waiter POS
                     </button>
+                    <button
+                        onClick={() => navigate('/staff')}
+                        style={{ padding: '8px 16px', background: '#0284c7', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                        👨‍🍳 Kitchen KDS
+                    </button>
                 </div>
             </div>
-
             {/* Filter Tabs */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
                 {[
