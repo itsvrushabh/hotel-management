@@ -10,3 +10,5 @@ export { default as KitchenDisplay } from './staff/KitchenDisplay';
 export { default as WaiterView } from './staff/WaiterView';
 export { default as FrontDeskView } from './staff/FrontDeskView';
 export { default as RoomServiceView } from './customer/RoomServiceView';
+export { default as HotelFrontDeskView } from './staff/HotelFrontDeskView';
+export { default as RestaurantFrontDeskView } from './staff/RestaurantFrontDeskView';
