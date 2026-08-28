@@ -1,5 +1,7 @@
-frontend/node_modules/
+hotel-frontend/node_modules/
+hotel-frontend/dist/
+restaurant-frontend/node_modules/
+restaurant-frontend/dist/
 backend/target/
-frontend/dist/
 dist/
 *.pyc

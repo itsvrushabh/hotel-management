@@ -39,11 +39,33 @@ services:
       start_period: 3s
       retries: 3
 
-  frontend:
+  hotel-frontend:
     build:
-      context: ./frontend
+      context: ./hotel-frontend
       dockerfile: Dockerfile
-    container_name: hotel-frontend
+    container_name: hotel-frontend-app
+    restart: unless-stopped
+    environment:
+      PORT: "3001"
+      BACKEND_INTERNAL_URL: "http://backend:8080"
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3001/health > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      start_period: 3s
+      retries: 3
+
+  restaurant-frontend:
+    build:
+      context: ./restaurant-frontend
+      dockerfile: Dockerfile
+    container_name: restaurant-frontend-app
     restart: unless-stopped
     environment:
       PORT: "3000"

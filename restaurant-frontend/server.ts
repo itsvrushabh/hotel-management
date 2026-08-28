@@ -1,3 +1,4 @@
+export {};
 // hotel-management/frontend/server.ts
 // SPA server powered by Bun with client bundle compilation and API reverse proxy
 
