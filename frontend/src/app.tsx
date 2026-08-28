@@ -5,7 +5,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
-import { Menu, Cart, Checkout, OrderHistory, OwnerDashboard, KitchenDisplay, WaiterPOS } from './pages';
+import { Menu, Cart, Checkout, OrderHistory, OwnerDashboard, KitchenDisplay, WaiterPOS, WaiterView, FrontDeskView } from './pages';
 
 export const App: React.FC = () => {
     return (
@@ -20,6 +20,10 @@ export const App: React.FC = () => {
                     <Route path="/staff" element={<KitchenDisplay />} />
                     <Route path="/pos" element={<WaiterPOS />} />
                     <Route path="/staff/pos" element={<WaiterPOS />} />
+                    <Route path="/waiter" element={<WaiterView />} />
+                    <Route path="/staff/waiter" element={<WaiterView />} />
+                    <Route path="/frontdesk" element={<FrontDeskView />} />
+                    <Route path="/staff/frontdesk" element={<FrontDeskView />} />
                     <Route
                         path="*"
                         element={
